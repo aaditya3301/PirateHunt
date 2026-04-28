@@ -2,125 +2,88 @@
 
 Real-time live-stream piracy detection system for sports broadcasts. Phase 1 focuses on fingerprinting core and project scaffold.
 
-## Quick Start
+## Installation
 
 ### Prerequisites
 
-- Python 3.11+
-- `ffmpeg` (system dependency)
-- `chromaprint` (system dependency)
-- `uv` package manager (or pip)
+- **Python 3.11+** (required)
+- **Node.js 18+** (required)
+- **Docker** (required for PostgreSQL + Redis)
+- **FFmpeg** (optional, for video processing)
+- **Chromaprint** (optional, for audio fingerprinting)
 
-**macOS:**
+### 1. Start Database Services
+
 ```bash
-brew install ffmpeg chromaprint
+docker compose up -d
 ```
 
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install ffmpeg chromaprint
-```
+This starts PostgreSQL (port 5433) and Redis (port 6379).
 
-**Windows:**
-- Download FFmpeg from https://ffmpeg.org/download.html
-- Download Chromaprint tools from https://acoustid.org/chromaprint
+### 2. Install Backend Dependencies
 
-### Installation
+**Important:** Use Python 3.11 or higher.
 
-1. Clone the repository:
-```bash
-cd PirateHunter
-```
-
-2. Install dependencies with `uv`:
-```bash
-uv sync
-```
-
-Or with pip:
 ```bash
 pip install -e ".[dev]"
 ```
 
-3. Set up environment:
-```bash
-cp .env.example .env
-```
-
-4. Start services (PostgreSQL + Redis):
-```bash
-docker-compose up -d
-```
-
-### Running Tests
-
-Add a sample video file to `tests/fixtures/sample.mp4` to run integration tests. Tests will skip gracefully if missing.
+### 3. Initialize Database
 
 ```bash
-pytest -v
+alembic upgrade head
 ```
 
-### Running the API
+### 4. Install Frontend Dependencies
 
-```bash
-uvicorn piratehunt.api.app:app --reload
-```
-
-Server runs on `http://localhost:8000`. Check `/health` endpoint:
-```bash
-curl http://localhost:8000/health
-```
-
-### Running the Real-Time Dashboard (Phase 6)
-
-#### Backend Setup
-The API server includes WebSocket support for real-time event streaming. Ensure Redis and PostgreSQL are running:
-```bash
-docker-compose up -d
-```
-
-#### Frontend Setup
 ```bash
 cd dashboard
 npm install
-npm run dev
+cd ..
 ```
 
-Dashboard runs on `http://localhost:3000`
+### 5. Configure Environment
 
-Create `.env.local` in the `dashboard/` directory:
+Edit `.env` and add your Gemini API key (optional):
+
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_WS_URL=ws://localhost:8000
-NEXT_PUBLIC_USE_MOCK=false
+GEMINI_API_KEY=your_api_key_here
 ```
 
-#### Full System Integration
-**Terminal 1 - Backend API:**
+## Running the System
+
+### Backend API
+
 ```bash
 python -m piratehunt.api.main --host localhost --port 8000
 ```
 
-**Terminal 2 - Frontend:**
+API available at: http://localhost:8000
+API Docs: http://localhost:8000/docs
+
+### Frontend Dashboard
+
 ```bash
 cd dashboard
 npm run dev
 ```
 
-**Terminal 3 - Demo (Workers):**
+Dashboard available at: http://localhost:3000
+
+### Workers (Optional)
+
+Run in separate terminals:
+
 ```bash
-python -m piratehunt.cli worker dmca  # DMCA processor
+# Discovery worker (finds pirate streams)
+python -m piratehunt.cli worker discovery
+
+# Verification worker (verifies candidates)
+python -m piratehunt.cli worker verification
+
+# DMCA worker (generates takedown notices)
+python -m piratehunt.cli worker dmca
 ```
-
-Visit `http://localhost:3000` to see live pirate detection and takedown tracking.
-
-### Dashboard Features
-
-- **Real-Time 3D Globe**: Animated pins showing pirate streams by location
-- **Event Feed**: Live ticker of detections, verifications, and takedowns
-- **Takedown Funnel**: Visual pipeline of detected → verified → drafted → submitted → taken down
-- **Revenue Tracker**: Estimated financial impact of piracy
-- **Connection Status**: Real-time WebSocket connectivity indicator
 
 ## Project Structure
 
@@ -215,14 +178,18 @@ piratehunt/
 
 ### Code Style
 
-Code is formatted with Black and checked with Ruff. Format and lint:
-
 ```bash
 black src tests
 ruff check --fix src tests
 ```
 
-### Type Hints
+### Running Tests
+
+```bash
+pytest -v
+```
+
+### Type Checking
 
 All code uses full type hints with `from __future__ import annotations`.
 
