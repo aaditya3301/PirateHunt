@@ -198,10 +198,61 @@ python scripts/simulate_dashboard.py
 
 ## Deployment
 
-The backend is containerized via `Dockerfile` and can be deployed to Google Cloud Run.
-The dashboard can be deployed to Vercel by setting the root directory to `dashboard`.
+### Infrastructure
 
-See the deployment guide for full instructions including free-tier setup with Neon (PostgreSQL) and Upstash (Redis).
+| Component | Service | Notes |
+|-----------|---------|-------|
+| Frontend (Next.js) | Vercel | Root directory: `dashboard` |
+| Backend (FastAPI) | Google Cloud Run | Containerized via `Dockerfile` |
+| PostgreSQL + pgvector | Neon.tech | Free tier |
+| Redis | Upstash | Free tier |
+
+### Frontend — Vercel
+
+1. Import the GitHub repository at [vercel.com](https://vercel.com)
+2. Set **Root Directory** to `dashboard`
+3. Framework preset: `Next.js` (auto-detected)
+4. Add the following environment variables:
+
+| Variable | Value |
+|----------|-------|
+| `NEXT_PUBLIC_API_URL` | Your Cloud Run backend URL |
+| `NEXT_PUBLIC_WS_URL` | Your Cloud Run WebSocket URL (`wss://...`) |
+| `NEXT_PUBLIC_USE_MOCK` | `false` |
+
+### Backend — Google Cloud Run
+
+```bash
+# Authenticate
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+
+# Enable APIs
+gcloud services enable run.googleapis.com containerregistry.googleapis.com
+
+# Build and push image
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/piratehunt-api
+
+# Deploy
+gcloud run deploy piratehunt-api \
+  --image gcr.io/YOUR_PROJECT_ID/piratehunt-api \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8000 \
+  --memory 512Mi \
+  --set-env-vars \
+    DATABASE_URL="postgresql+asyncpg://user:pass@host.neon.tech/neondb?ssl=true",\
+    REDIS_URL="rediss://default:xxx@global-xxx.upstash.io:6379",\
+    GEMINI_API_KEY="your-key"
+```
+
+### AI — Google Gemini
+
+PirateHunt uses **Gemini** for two core functions:
+
+- **Multimodal verification** — Gemini Vision analyses sampled video frames to detect sports content and official broadcaster logos, returning a `pirate`, `clean`, or `inconclusive` verdict.
+- **DMCA generation** — Gemini text generation drafts and legally polishes takedown notices targeted to the infringing platform.
 
 ---
 
